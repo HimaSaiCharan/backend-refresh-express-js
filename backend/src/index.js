@@ -36,6 +36,17 @@ const requireAuth = async (request, response, next) => {
   next();
 };
 
+const isInvalidLeaveRequest = ({ startDate, endDate, reason }) => {
+  if (!startDate || !endDate || typeof reason !== "string" || !reason.trim()) {
+    return true;
+  }
+
+  const startTime = Date.parse(startDate);
+  const endTime = Date.parse(endDate);
+
+  return Number.isNaN(startTime) || Number.isNaN(endTime) || startTime > endTime;
+};
+
 // User login endpoints
 app.post("/login", async (request, response) => {
   const { email, password } = request.body;
@@ -102,6 +113,11 @@ app.get("/leave-requests", requireAuth, async (request, response) => {
 
 app.post("/leave-requests", requireAuth, async (request, response) => {
   const { startDate, endDate, reason } = request.body;
+
+  if (isInvalidLeaveRequest({ startDate, endDate, reason })) {
+    return response.status(400).json({ message: "Invalid leave request" });
+  }
+
   const result = await pool.query(
     `INSERT INTO leave_requests (user_id, start_date, end_date, reason)
      VALUES ($1, $2, $3, $4)
@@ -114,6 +130,11 @@ app.post("/leave-requests", requireAuth, async (request, response) => {
 
 app.put("/leave-requests/:id", requireAuth, async (request, response) => {
   const { startDate, endDate, reason } = request.body;
+
+  if (isInvalidLeaveRequest({ startDate, endDate, reason })) {
+    return response.status(400).json({ message: "Invalid leave request" });
+  }
+
   const result = await pool.query(
     `UPDATE leave_requests
         SET start_date = $1, end_date = $2, reason = $3
@@ -277,6 +298,10 @@ app.get("/db-health", async (_request, response) => {
       message: "Database connection failed",
     });
   }
+});
+
+app.use((_request, response) => {
+  response.status(404).json({ message: "Route not found" });
 });
 
 app.listen(port, () => {
