@@ -117,9 +117,9 @@ app.put("/leave-requests/:id", requireAuth, async (request, response) => {
   const result = await pool.query(
     `UPDATE leave_requests
         SET start_date = $1, end_date = $2, reason = $3
-      WHERE id = $4 AND status = 'pending'
+      WHERE id = $4 AND user_id = $5 AND status = 'pending'
       RETURNING *`,
-    [startDate, endDate, reason, request.params.id],
+    [startDate, endDate, reason, request.params.id, request.user.id],
   );
 
   if (result.rowCount === 0) {
@@ -133,8 +133,9 @@ app.put("/leave-requests/:id", requireAuth, async (request, response) => {
 
 app.delete("/leave-requests/:id", requireAuth, async (request, response) => {
   const result = await pool.query(
-    "DELETE FROM leave_requests WHERE id = $1 AND status = 'pending'",
-    [request.params.id],
+    `DELETE FROM leave_requests
+      WHERE id = $1 AND user_id = $2 AND status = 'pending'`,
+    [request.params.id, request.user.id],
   );
 
   if (result.rowCount === 0) {
@@ -148,9 +149,13 @@ app.delete("/leave-requests/:id", requireAuth, async (request, response) => {
 
 // CRUD Manager Leave endpoints
 app.get(
-  "/manager/:managerId/leave-requests",
+  "/manager/leave-requests",
   requireAuth,
   async (request, response) => {
+    if (request.user.role !== "manager") {
+      return response.status(403).json({ message: "Manager access required" });
+    }
+
     const result = await pool.query(
       `SELECT leave_requests.id,
               leave_requests.user_id,
@@ -166,7 +171,7 @@ app.get(
          JOIN users ON users.id = leave_requests.user_id
         WHERE users.manager_id = $1
         ORDER BY leave_requests.created_at DESC`,
-      [request.params.managerId],
+      [request.user.id],
     );
 
     response.json(result.rows);
@@ -177,6 +182,10 @@ app.patch(
   "/leave-requests/:id/status",
   requireAuth,
   async (request, response) => {
+    if (request.user.role !== "manager") {
+      return response.status(403).json({ message: "Manager access required" });
+    }
+
     const { status } = request.body;
 
     if (!["approved", "rejected"].includes(status)) {
@@ -185,12 +194,35 @@ app.patch(
       });
     }
 
+    const leaveRequestResult = await pool.query(
+      `SELECT users.manager_id
+         FROM leave_requests
+         JOIN users ON users.id = leave_requests.user_id
+        WHERE leave_requests.id = $1`,
+      [request.params.id],
+    );
+    const leaveRequest = leaveRequestResult.rows[0];
+
+    if (!leaveRequest) {
+      return response.status(404).json({ message: "Leave request not found" });
+    }
+
+    if (String(leaveRequest.manager_id) !== String(request.user.id)) {
+      return response.status(403).json({
+        message: "You do not manage this employee",
+      });
+    }
+
     const result = await pool.query(
-      `UPDATE leave_requests
-        SET status = $1
-      WHERE id = $2 AND status = 'pending'
-      RETURNING *`,
-      [status, request.params.id],
+      `UPDATE leave_requests AS leave_request
+          SET status = $1
+         FROM users
+        WHERE leave_request.id = $2
+          AND leave_request.status = 'pending'
+          AND users.id = leave_request.user_id
+          AND users.manager_id = $3
+      RETURNING leave_request.*`,
+      [status, request.params.id, request.user.id],
     );
 
     if (result.rowCount === 0) {
