@@ -8,9 +8,13 @@
     "dev": "node src/index.js",
     "db:create-users": "export $(grep -v '^#' .env | xargs) && PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/001_create_users.sql",
     "db:seed-users": "export $(grep -v '^#' .env | xargs) && PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/002_seed_users.sql",
-    "db:create-leave-requests": "export $(grep -v '^#' .env | xargs) && PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/003_create_leave_requests.sql"
+    "db:create-leave-requests": "export $(grep -v '^#' .env | xargs) && PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/003_create_leave_requests.sql",
+    "db:add-auth": "export $(grep -v '^#' .env | xargs) && PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f sql/004_add_auth.sql",
+    "db:set-development-passwords": "node scripts/set-development-passwords.js"
   },
   "dependencies": {
+    "bcryptjs": "latest",
+    "cookie-parser": "latest",
     "dotenv": "^17.4.2",
     "express": "latest",
     "pg": "^8.23.0"

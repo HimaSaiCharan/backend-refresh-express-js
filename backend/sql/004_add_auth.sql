@@ -1,0 +1,8 @@
+ALTER TABLE users
+ADD COLUMN password_hash TEXT;
+
+CREATE TABLE sessions (
+  id UUID PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
