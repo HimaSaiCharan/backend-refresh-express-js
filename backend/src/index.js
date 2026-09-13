@@ -1,5 +1,6 @@
 import "dotenv/config";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import express from "express";
 import pool from "./db.js";
 import authRouter from "./routes/auth.js";
@@ -10,6 +11,12 @@ const app = express();
 const port = 3000;
 
 // Middlewares
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -62,6 +69,7 @@ app.get("/db-health", async (_request, response) => {
   }
 });
 
+// 404 Endpoint Not Found
 app.use((_request, response) => {
   response.status(404).json({ message: "Route not found" });
 });
